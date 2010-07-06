@@ -1,0 +1,141 @@
+<html>
+<head>
+   <title>JSXGraph: Real-time function</title>
+   <link rel="stylesheet" type="text/css" href="jsxgraph.css" />
+   <link type="text/css" charset="utf-8" rel="stylesheet" media="screen, projection" href="stylesheets/apidocs.css" />
+   <script type="text/javascript" src="javascripts/lib/prototype.js"></script>
+   <script type="text/javascript" src="javascripts/jsxgraph/jsxgraph_uncompressed.js"></script>
+</head>
+<body>
+  <div id="main" class="page-content">
+    <h3 class="page-title namespace">JSXGraph: Real-time function</h3>
+    <div id="back" class="back">
+      <a href="index.html">back</a>
+    </div>
+      <div class="section section-klass_methods">
+        <div class="section-content">
+          <ul class="method-details-list">
+            <li class="method-description">
+              <form id="math" action="#">
+                <fieldset>
+                  <legend>Real-time function: </legend>
+                  <ul class="method-details-list-h">
+                    <li class="method-description">
+                      <label>y = </label>
+                      <input type="text" id="exp" class="expression" value="3*x*Math.cos(x) " />
+                    </li>
+                    <li class="method-description">
+                      <label>update interval(ms): </label>
+                      <input type="text" id="interval" class="value" value="100" />
+                    </li>
+                  </ul>
+                  <p />
+                  <ul class="method-details-list-h">
+                    <li class="method-description">
+                      <input type="button" value="plot" onclick="plotIt();" />
+                    </li>
+                    <li class="method-description">
+                      <input type="button" value="start" onclick="startPlotting();" />
+                    </li>
+                    <li class="method-description">
+                      <input type="button" value="stop" onclick="stopPlotting();" />
+                    </li>
+                    <li class="method-description">
+                      <input type="button" value="clear" onclick="clearPlot();" />
+                    </li>
+                  </ul>
+
+                </fieldset>
+
+              <div id="jxgbox" class="jxgbox" style="width:600px; height:300px; float:left; margin:25px; padding:25px; border: 1px black"></div>
+            </li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div id="debug" style="display:block;"></div>
+   <script type="text/javascript">
+    /* <![CDATA[ */
+
+            var board, axisx, axisy, graph, f, g, timer, interval,
+                xvalue, xdata, ydata, index;
+
+            eval("function f(x){ return "+document.getElementById("exp").value+";}");
+            
+            var resetCurveData = function () {
+                xdata = [-5];
+                ydata = [f(xdata[0])];
+                index = 0;
+            };
+
+            JXG.Options.fontSize = 14;
+            
+            resetCurveData();
+            board = JXG.JSXGraph.initBoard('jxgbox', {originX: 300, originY: 150, unitX: 60, unitY: 15, showNavigation: false, showCopyright: false, grid: false});
+            axisx = board.createElement('axis', [[0,0], [1,0]], {strokeColor:'black'});
+            axisy = board.createElement('axis', [[0,0], [0,1]], {strokeColor:'black'});
+            graph = board.createElement('functiongraph', [function(x){ return f(x);}]);
+
+
+            function plotIt(){
+              clearPlot();
+              
+              //redefine function f according to the current text field value
+              eval("f = function(x) { return "+document.getElementById("exp").value+";}");
+              //change the Y attribute of the graph to the new function
+              graph.Y = function(x){ return f(x); };
+              //update the graph
+              graph.updateCurve();
+              //update the whole board
+              board.update();
+            }
+            
+
+            fetchData = function() {
+                if (xdata.length<100) {
+                    index = index + 1;
+                    xvalue = index*0.1-5;
+                    xdata.push(xvalue);
+                    ydata.push(f(xvalue));
+                } 
+                else {
+                    stopPlotting();
+                    resetCurveData();
+                }
+
+                // The following updates just the curve 'g'. It may dip into jsxgraph's private API
+                g.prepareUpdate();
+                g.update();
+                g.updateRenderer();
+            };
+            
+
+            startPlotting = function() {
+                if (!g) {
+                    g = board.createElement('curve', [xdata,ydata],{strokeWidth:3, strokeColor:'red'});
+                }
+                interval = $('interval').value;
+                timer = setInterval(fetchData, interval);  // Start the periodical update
+            };
+
+
+            stopPlotting = function() {
+                clearInterval(timer);
+            };
+            
+
+            clearPlot = function() {
+                stopPlotting();
+                resetCurveData();                
+                if (g) {
+                    g.remove();
+                    g = undefined;
+                }
+                board.update();
+            }
+
+          /* ]]> */
+  </script>
+</body>
+</html>

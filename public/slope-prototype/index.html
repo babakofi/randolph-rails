@@ -1,0 +1,253 @@
+<html>
+<head>
+  <title>Prototype SmartGraph - Slope Activity</title>
+  
+  <link rel="stylesheet" href="blueprint/screen.css" type="text/css" media="screen, projection">
+  <link rel="stylesheet" href="blueprint/print.css" type="text/css" media="print">
+  <!--[if lt IE 8]><link rel="stylesheet" href="blueprint/ie.css" type="text/css" media="screen, projection"><![endif]-->
+  
+  <link rel="stylesheet" href="../stylesheets/jsxgraph/jsxgraph.css" type="text/css">
+  <script type="text/javascript" src="../javascripts/jsxgraph/jsxgraph_uncompressed.js"></script>
+  <script type="text/javascript" src="../javascripts/jquery-1.4.0/jquery.min.js"></script>
+  <script type="text/javascript" src="../javascripts/jqueryui-1.7.2/jquery-ui.js"></script>
+  
+  <style type="text/css">
+    .faded {
+      color: #cccccc;
+    }
+  </style>
+     
+  <script type="text/javascript">
+    
+    JXG.Options.grid.hasGrid = true;
+    JXG.Options.grid.gridX = 1;
+    JXG.Options.grid.gridY = 1;
+    JXG.Options.grid.gridOpacity="0.5";
+    JXG.Options.grid.gridColor="#000000";
+    
+    $(document).ready(function () {
+      var b = JXG.JSXGraph.initBoard('box', { 
+        originX: 135, 
+        originY: 250, 
+        unitX: 25, 
+        unitY: 25, 
+        axis: true,
+        showCopyright: false,
+        showNavigation: false
+      });
+      
+      // this line is required to actually set the options defined using JXG.Option above
+      JXG.useStandardOptions(b);
+      
+      var f = function (x) {
+        return 2.5*x;
+      };
+      
+      var l = b.createElement('functiongraph', [f]);
+      var p1 = b.createElement('glider', [-3, f(-3), l]);
+      var p2 = b.createElement('glider', [3, f(3), l]);
+      
+      p1.setProperty('fixed: true');
+      p2.setProperty('fixed: true');
+      
+      // 'moveable point 1'. Idea is that there'll be a second movable point when this one gets fixed.
+      
+      var mp1 = b.createElement('point', [-3, f(-3)+1.5]);
+      var arrow = b.createElement('arrow', [p1, mp1]);
+      var dotted = b.createElement('line', [p2, mp1], { 
+        strokeColor: '#aaaaaa',
+        visible: false,
+        dash: 2
+      });
+      
+      var arcSideLength = 1.0;
+      
+      var arcSideData = function (midpoint, arcSidePoint) {
+        var x = midpoint.X() - arcSidePoint.X();
+        var y = midpoint.Y() - arcSidePoint.Y();
+        var length = Math.sqrt(Math.pow(x, 2) + Math.pow(y, 2));
+    
+        return {
+          x: x,
+          y: y,
+          length: length
+        };
+      };
+      
+      var arcPointX = function (midpoint, arcSidePoint) {
+        var data = arcSideData(midpoint, arcSidePoint);
+        var deltaX = data.x * arcSideLength / data.length;
+        
+        return midpoint.X() - deltaX;
+      };
+      
+      var arcPointY = function (midpoint, arcSidePoint) {
+        var data = arcSideData(midpoint, arcSidePoint);
+        var deltaY = data.y * arcSideLength / data.length;
+        
+        return midpoint.Y() - deltaY;
+      };
+      
+      var pDotted = b.createElement('point', [
+        function () { return arcPointX(mp1, p1) },
+        function () { return arcPointY(mp1, p1) }
+      ], { visible: false });
+
+      var pArrow = b.createElement('point', [
+        function () { return arcPointX(mp1, p2) },
+        function () { return arcPointY(mp1, p2) }
+      ], { visible: false });
+
+      var angleSymbol = b.createElement('arc', [mp1, pDotted, pArrow], { strokeColor: '#aaaaaa', visible: false });
+      var pMiddle = b.createElement('point', [function () { return pArrow.X(); } , function () { return pDotted.Y(); }], { visible: false });
+      
+      var l1 = b.createElement('segment', [pDotted, pMiddle], { strokeColor: "#cc0000" });
+      var l2 = b.createElement('segment', [pMiddle, pArrow], { strokeColor: "#cc0000" });
+      
+      var hideRightAngleSymbol = function () {
+        l1.setProperty('visible:false');
+        l2.setProperty('visible:false');
+      };
+      var showRightAngleSymbol = function () {
+        l1.setProperty('visible:true');
+        l2.setProperty('visible:true');
+      };
+
+      hideRightAngleSymbol();
+      var mp1Dragging = false;
+      var tolerance = 0.5; 
+      
+      var arrowSnapped = function () {
+        return ((Math.abs(mp1.X() - p1.X()) < tolerance) && (Math.abs(mp1.Y() - p2.Y()) < tolerance));
+      };
+      
+      var page = 1;
+      
+      mp1.highlight = function () {
+        // i.e., "super.highlight()"
+        this.constructor.prototype.highlight.call(this);
+
+        if (page == 1) {
+          $(document).bind('mousedown.mp1', function () {
+            mp1Dragging = true;
+          
+            if (arrowSnapped()) {
+              angleSymbol.setProperty('visible:false');
+              showRightAngleSymbol();
+            }
+            else {
+              angleSymbol.setProperty('visible:true');
+              hideRightAngleSymbol();
+            }
+          
+            dotted.setProperty('visible:true');
+          
+            $(document).bind('mousemove.mp1', function () {
+              if (mp1Dragging) {
+                if (arrowSnapped()) {
+                  angleSymbol.setProperty('visible:false');
+                  showRightAngleSymbol();
+                }
+                else {
+                  angleSymbol.setProperty('visible:true');
+                  hideRightAngleSymbol();
+                }
+              }
+            });
+              
+            $(document).bind('mouseup.mp1', function () {
+              mp1Dragging = false;
+              $(document).unbind('.mp1');
+              
+              if (arrowSnapped()) {
+                mp1.moveTo([p1.X(), p2.Y()]);
+                showRightAngleSymbol();
+
+                $("#deltay").focus().animate({backgroundColor: '#F9F3C3'}, 2000);
+                $("#next > p").removeClass('faded').wrap("<a href='#'/>");
+                mp1.setProperty('fixed:true');
+              }
+
+              angleSymbol.setProperty('visible:false');
+              dotted.setProperty('visible:false');
+            });
+          });
+        }
+      };
+      
+      mp1.noHighlight = function () {
+        this.constructor.prototype.noHighlight.call(this);
+        if (!mp1Dragging) {
+          $(document).unbind('.mp1');
+        }
+      };
+      
+      // when the "NEXT" link is clicked...
+      
+      $("#next a").live('click', function () {
+        page = 2;
+  
+        $("#page1").fadeOut('slow', function () {
+          $("#page2").fadeIn('slow');
+        });
+        
+        $("#deltay").animate({backgroundColor: "#ffffff"});
+        
+        $('.deltax').fadeIn('slow', function () {
+          $(this).focus();
+        });
+        
+        $("#next p").unwrap().addClass('faded');
+        
+        var mp2 = b.createElement('point', [mp1.X()+1.5, mp1.Y()]);
+        var arrow2 = b.createElement('arrow', [mp1, mp2]);
+      });
+      
+    });
+    
+    
+  </script>
+  
+</head>
+<body>
+
+  <div class="container">
+    <h1 class="prepend-1">Slopes</h1>
+    <div class="span-16">
+      <div class="span-1" style="height:500px"></div>
+      <div  class="span-15 last" style="height: 300px">
+        <h2>Let's Measure the Slope</h2>
+        <hr>
+        <div id="page1">
+          <p class="prepend-1">
+            First, let's measure the y-distance. Pull the arrowhead to make a straight line up. (When you've made a right angle, you should see the right angle symbol. When that happens, let go.)
+          </p>
+        </div>
+        <div id="page2" style="display: none">
+          <p class="prepend-1">
+            Now, let's measure the x-distance. Pull the new arrowhead to the left until it meets up with point B.
+          </p>
+        </div>
+      </div>
+      <div class="span-15 last" style="height:150px">
+        <h2>Your Answer</h2>
+        <hr>
+        <p class="prepend-1">
+          <label for="deltay">Y-Distance</label>
+          <input id="deltay" class="text" type="text"></input>
+          <br>
+          <label class="deltax" id="deltax" style="display:none">X-Distance</label>
+          <input class="deltax text" id="deltax" style="display:none" type="text"></input>
+        </p>        
+      </div>
+      <div class="span-15 last" style="height:50px">
+        <h2 style="float:left"><a href="#">&lt;&lt;BACK</a></h2>
+        <h2 id="next" style="float:right"><p class="faded">NEXT&gt;&gt;</p></h2>
+      </div>
+    </div>
+    <div id="box" class="span-7 jxgbox last" style="height:500px;">
+    </div>
+  </div>
+
+</body>
+</html>
